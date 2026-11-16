@@ -1,4 +1,5 @@
-import { DOMPurify, buildConfig } from "../config/dom_purify"
+import Lexxy from "../config/lexxy"
+import { DOMPurify, buildAttachmentContentConfig, buildConfig, withAttributeOptions } from "../config/dom_purify"
 
 // An editor's sanitizer: the allowlist it was registered with, applied to a
 // string.
@@ -84,25 +85,29 @@ export default class EditorSanitizer {
     this.#config = buildConfig(allowedElements, allowedStyles)
   }
 
-  // safeForXml opts into DOMPurify's mXSS-safe mode, for a caller re-inflating
-  // stored content. It is off by default, and the reason is not that the default
-  // hop is trustworthy — the value an editor reads back carries the attacker's
-  // stored `content` verbatim. The reason is that strictness there is destructive:
+  // An editor reading its own value back. mXSS-safe mode stays off here, and the
+  // reason is not that this hop is trustworthy — the value carries the attacker's
+  // stored `content` verbatim. The reason is that strictness is destructive:
   // SAFE_FOR_XML drops any attribute whose value could close a comment, a
   // serialized `content` full of Rails view annotations is exactly that, and
   // CustomActionTextAttachmentNode.importDOM returns null for an attachment with no
-  // `content` — so the attachment vanishes on the next edit. Verified: strict on the
-  // value hop leaves `<action-text-attachment sgid content-type>` and re-editing that
-  // renders nothing.
-  //
-  // The strict config is this instance's own, spread rather than rebuilt, so the
-  // per-editor allowlist and everything else buildConfig put there — the Trusted
-  // Types policy, ADD_URI_SAFE_ATTR — survive the flip.
-  sanitize(html, { safeForXml = false } = {}) {
-    if (safeForXml) {
-      return DOMPurify.sanitize(html, { ...this.#config, SAFE_FOR_XML: true })
-    }
-
+  // `content` — so the attachment vanishes on the next edit.
+  sanitize(html) {
     return DOMPurify.sanitize(html, this.#config)
+  }
+
+  // A custom attachment's stored content on its way into the editor DOM. Its
+  // config starts from the one the value gets, so the per-editor allowlist and
+  // everything else buildConfig put there — the Trusted Types policy, the style
+  // policy, ADD_URI_SAFE_ATTR — carry over.
+  sanitizeAttachmentContent(html) {
+    return DOMPurify.sanitize(html, this.#attachmentContentConfig)
+  }
+
+  // The host's options are read on every call rather than once when the editor
+  // registers, so a Lexxy.configure() that lands after an editor exists — or
+  // after the fallback was built — still applies to it.
+  get #attachmentContentConfig() {
+    return withAttributeOptions(buildAttachmentContentConfig(this.#config), Lexxy.global.get("sanitizer").attachmentContent)
   }
 }

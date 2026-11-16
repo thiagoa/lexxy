@@ -115,6 +115,30 @@ Lexxy.configure({
 })
 ```
 
+### Sanitizer
+
+Lexxy sanitizes the content of custom attachments before it renders it inside the editor. `sanitizer.attachmentContent` adjusts which attributes survive there:
+
+- `allowDataAttributes`: whether `data-` attributes are kept. They are by default.
+- `allowedAttributes`: attributes to keep, in addition to the ones Lexxy and your extensions already allow.
+
+For example, to keep only the `data-` attributes your attachments need:
+
+```js
+Lexxy.configure({
+  global: {
+    sanitizer: {
+      attachmentContent: {
+        allowDataAttributes: false,
+        allowedAttributes: [ "data-language" ]
+      }
+    }
+  }
+})
+```
+
+Whatever these say, Lexxy always drops `data-controller`, `data-action`, event handlers, `srcdoc` and `patchsrc`.
+
 ## Content Security Policy
 
 Lexxy sanitizes with its own DOMPurify instance rather than the shared one, so

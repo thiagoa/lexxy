@@ -248,6 +248,32 @@ export function buildConfig(allowedElements = null, allowedStyles = []) {
   return config
 }
 
+// Attachment content is display markup the host renders, re-inflated from stored
+// content into the editor DOM. Nothing imports it, so it gets the mXSS-safe mode
+// the value hop can't afford.
+export function buildAttachmentContentConfig(config) {
+  return { ...config, SAFE_FOR_XML: true }
+}
+
+// The host's `sanitizer.attachmentContent` options, laid over a config of ours.
+// Allowed attributes join ALLOWED_ATTR where there is one. A config without an
+// allowlist has none, and giving it one would replace DOMPurify's default
+// attribute list rather than add to it, so there they go through ADD_ATTR, which
+// adds to whichever list is in force.
+export function withAttributeOptions(config, { allowDataAttributes, allowedAttributes = [] } = {}) {
+  const result = { ...config }
+
+  if (allowDataAttributes !== undefined) result.ALLOW_DATA_ATTR = allowDataAttributes
+
+  if (config.ALLOWED_ATTR) {
+    result.ALLOWED_ATTR = [ ...config.ALLOWED_ATTR, ...allowedAttributes ]
+  } else {
+    result.ADD_ATTR = allowedAttributes
+  }
+
+  return result
+}
+
 function allowlistFor(allowedElements) {
   // Null prototype, so a declared tag can never read through to an
   // Object.prototype key: `tagAttributes["constructor"]` would answer with a
